@@ -3,11 +3,31 @@
 #include <unistd.h>
 
 char board[9][9];
-
+int count = 0;
 void *CheckRow(void * row) {
-	char lst[9] ={'0','0','0','0','0','0','0','0','0'}; 
+	//char lst[9] ={'0','0','0','0','0','0','0','0','0'}; 
+	pthread_mutex_t mutex;
+	pthread_mutex_lock(&mutex);
+	char lst[9] ={'0','0','0','0','0','0','0','0','0'};
 	int *index = (int *) row;
-	printf("Current Index:  %d", *index);
+	int temp;
+	int j = *index;
+	for (int i = 0; i < 9; i++) {
+		temp = (int) board[j][i]-'0';
+		printf("Value of temp: %d \n", temp);	
+		if ( lst[temp] == '0' ) {
+			lst[temp] = '1';
+			//printf("TEST");
+		}
+		else  { 
+			printf("Error found in row: %d column: %d",*index , i); 
+			//printf("\n");
+		}
+		//printf( "%c", board[*index][i]);
+	}
+	count++;
+	//printf("Current Index:  %d", *index);
+	pthread_mutex_unlock(&mutex);
 	printf("\n");
 	return NULL;
 }
@@ -28,18 +48,21 @@ int main() {
 		if (line[0] != '\n')
 			i++;
 	}
-	//Prints Board ******
-	
-	int k = 0; int l = 0;	
+	//Prints Board ******	
+	/*int k = 0; int l = 0;	
 	for (k = 0; k < 9; k++) {
 		for(l = 0; l < 9; l++) { printf("%c", board[k][l]); }
 		printf("\n");
-	}
+	}*/
 	
 	// Create Threads. *****
 	pthread_t thread_id[27];
+	//int count = 0;
 	for (int i = 0; i < 9; i++) {
-		pthread_create(&thread_id[i], NULL, CheckRow, &i);
+		printf("Index: %d", i);
+		printf("\n");
+		pthread_create(&thread_id[i], NULL, CheckRow, &count);
+		//count++;
 	}
 	for (int i = 0; i < 9; i++) {
 		pthread_join(thread_id[i], NULL);
