@@ -5,12 +5,15 @@ struct BasicallyGlobal {
 	char Vflag;
 	char board[9][9];
 	int count;
+	pthread_mutex_t mutex;
 };
 void *CheckSect(void * sect) {
+	
 	//Function that checks one sector of the board at a time.
 	//******************************************************
 	struct BasicallyGlobal* ptr = (struct BasicallyGlobal*) sect;
 	ptr = (struct BasicallyGlobal*) sect;
+	pthread_mutex_lock(&ptr->mutex);
 	// Char array to keep track of what is seen.
 	char lst[9] = {'0','0','0','0','0','0','0','0','0'};
 	// 2D int array to store the leftmost positions of each sector.
@@ -31,13 +34,15 @@ void *CheckSect(void * sect) {
 		ptr->Vflag = 'F';
 	}
 	ptr->count++;
+	pthread_mutex_unlock(&ptr->mutex);
 	return NULL;
 }
 void *CheckCol(void * col) {
 	struct BasicallyGlobal* ptr = (struct BasicallyGlobal*) col;
         char lst[9] ={'0','0','0','0','0','0','0','0','0'};
         ptr = (struct BasicallyGlobal*) col;
-        int temp;
+        pthread_mutex_lock(&ptr->mutex);
+	int temp;
         int i = ptr->count;
         for (int j = 0; j < 9; j++) {
                 temp = (int) ptr->board[j][i]-'0';
@@ -51,12 +56,14 @@ void *CheckCol(void * col) {
                 }
         }
         ptr->count++;
+	pthread_mutex_unlock(&ptr->mutex);
         return NULL;
 }
 void *CheckRow(void * row) {
 	struct BasicallyGlobal* ptr = (struct BasicallyGlobal*) row;
 	char lst[9] ={'0','0','0','0','0','0','0','0','0'};
 	ptr = (struct BasicallyGlobal*) row;
+	pthread_mutex_lock(&ptr->mutex);
 	int temp; 
 	int j = ptr->count; 
 	for (int i = 0; i < 9; i++) {
@@ -71,6 +78,7 @@ void *CheckRow(void * row) {
 		}
 	}
 	ptr->count++;
+	pthread_mutex_unlock(&ptr->mutex);
 	return NULL;
 }
 int main(int argc, char *argv[]) {
@@ -92,6 +100,9 @@ int main(int argc, char *argv[]) {
 	}
 	struct BasicallyGlobal col = row;
 	struct BasicallyGlobal sect = col;
+	pthread_mutex_init(&row.mutex, NULL);
+	pthread_mutex_init(&col.mutex, NULL);
+	pthread_mutex_init(&sect.mutex, NULL);
 	// Create Threads. **************************************
 	pthread_t thread_id[27];
 	for (int i = 0; i < 9; i++) {
