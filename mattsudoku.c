@@ -1,104 +1,107 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <unistd.h>
-
-char board[9][9];
-int count = 0;
-pthread_mutex_t mutex;
-
 struct BasicallyGlobal {
 	char Vflag;
 	char board[9][9];
-	int Rcount;
-	int Ccount;
-	char Rerr;
-	char Cerr;
+	int count;
 };
+void *CheckSect(void * sect) {
+	//Function that checks one sector of the board at a time.
+	//******************************************************
+	struct BasicallyGlobal* ptr = (struct BasicallyGlobal*) sect;
+	ptr = (struct BasicallyGlobal*) sect;
+	// Char array to keep track of what is seen.
+	char lst[9] = {'0','0','0','0','0','0','0','0','0'};
+	// 2D int array to store the leftmost positions of each sector.
+	int pair[9][2] = {{0,0},{0,3},{0,6},{3,0},{3,3},{3,6},{6,0},{6,3},{6,6}};
+	// Basic variables used for tracking and simplicity.
+	int temp; char err = ' ';
+	for(int i = pair[ptr->count][0]; i < pair[ptr->count][0]+3; i++) {
+		for(int j = pair[ptr->count][1]; j < pair[ptr->count][1]+3; j++) {
+			temp = (int) ptr->board[i][j]-'0';
+			if (lst[temp-1] == '0')
+				lst[temp-1] = '1';
+			else 
+				err = '1';
+		}
+	}
+	if (err != ' '){
+		printf("Error found in sector: %d \n", ptr->count);
+		ptr->Vflag = 'F';
+	}
+	ptr->count++;
+	return NULL;
+}
 void *CheckCol(void * col) {
-        pthread_mutex_lock(&mutex);
+	struct BasicallyGlobal* ptr = (struct BasicallyGlobal*) col;
         char lst[9] ={'0','0','0','0','0','0','0','0','0'};
-        struct BasicallyGlobal* ptr = (struct BasicallyGlobal*) col;
+        ptr = (struct BasicallyGlobal*) col;
         int temp;
-        int i = ptr->Ccount;
+        int i = ptr->count;
         for (int j = 0; j < 9; j++) {
                 temp = (int) ptr->board[j][i]-'0';
                 if ( lst[temp-1] == '0' ) {
                         lst[temp-1] = '1';
                 }
                 else  {
-                        printf("Error found in column: %d row: %d", ptr->Ccount , j);
+                        printf("Error found in column: %d row: %d", ptr->count , j);
+			ptr->Vflag = 'F';
                         printf("\n");
                 }
-                //printf( "%c", board[*index][i]);
         }
-        //printf("\n");
-        ptr->Ccount++;
-        pthread_mutex_unlock(&mutex);
+        ptr->count++;
         return NULL;
 }
-
 void *CheckRow(void * row) {
-	pthread_mutex_lock(&mutex);
-	char lst[9] ={'0','0','0','0','0','0','0','0','0'};
 	struct BasicallyGlobal* ptr = (struct BasicallyGlobal*) row;
+	char lst[9] ={'0','0','0','0','0','0','0','0','0'};
+	ptr = (struct BasicallyGlobal*) row;
 	int temp; 
-	int j = ptr->Rcount; 
+	int j = ptr->count; 
 	for (int i = 0; i < 9; i++) {
 		temp = (int) ptr->board[j][i]-'0';
 		if ( lst[temp-1] == '0' ) {
 			lst[temp-1] = '1';
 		}
 		else  { 
-			printf("Error found in row: %d column: %d", ptr->Rcount , i); 
+			printf("Error found in row: %d column: %d", ptr->count , i); 
+			ptr->Vflag = 'F';
 			printf("\n");
 		}
-		//printf( "%c", board[*index][i]);
 	}
-	//printf("\n");
-	ptr->Rcount++;
-	pthread_mutex_unlock(&mutex);
+	ptr->count++;
 	return NULL;
 }
 int main(int argc, char *argv[]) {
-	//struct BasicallyGlobal 
-	//char name[20]; printf("Enter Filename: \n"); scanf("%s", &name); 
-	//FILE *ptr; ptr = fopen(name, "r");
-	struct BasicallyGlobal dumb; dumb.Vflag = 'T'; dumb.Rcount = 0; 
-	dumb.Rerr = ' '; dumb.Ccount = 0; dumb.Cerr = ' ';
+	// Read in board from stdin. ****************************
+	struct BasicallyGlobal row; row.Vflag = 'T'; row.count = 0; 
 	int i = 0; int j = 0; int c = 0; char line[25];
 	while (fgets(line, sizeof(line), stdin)){
 		while (j < 9) {
 			if (line[c] == '\0' || line[c] == '\n') {break;}
 			if (line[c] == ' ' || line[j] == '\0') { c++; }
 			else {
-				dumb.board[i][j] = line[c];
-				printf("%c", dumb.board[i][j]);
+				row.board[i][j] = line[c];
+				printf("%c", row.board[i][j]);
 				j++; c++;
 			}
 		} printf("\n"); j = 0; c =0; 
 		if (line[0] != '\n')
 			i++;
 	}
-	//Prints Board ******	
-	int k = 0; int l = 0;	
-	for (k = 0; k < 9; k++) {
-		for(l = 0; l < 9; l++) { printf("%c", dumb.board[k][l]); }
-		printf("\n");
-	}
-	
-	// Create Threads. *****
+	struct BasicallyGlobal col = row;
+	struct BasicallyGlobal sect = col;
+	// Create Threads. **************************************
 	pthread_t thread_id[27];
-	//int count = 0;
 	for (int i = 0; i < 9; i++) {
-		//pthread_create(&thread_id[i], NULL, CheckRow, &count);
-		pthread_create(&thread_id[i], NULL, CheckRow, &dumb);
+		pthread_create(&thread_id[i], NULL, CheckRow, &row);
+		pthread_create(&thread_id[i+9], NULL, CheckCol, &col);
+		pthread_create(&thread_id[i+18], NULL, CheckSect, &sect);
 	}
-	for (int i = 9; i < 18; i++) {
-                //pthread_create(&thread_id[i], NULL, CheckRow, &count);
-                pthread_create(&thread_id[i], NULL, CheckCol, &dumb);
-        }
-	for (int i = 0; i < 9; i++) {
+	for (int i = 0; i < 27; i++) {
 		pthread_join(thread_id[i], NULL);
 	}
+	if (row.Vflag == 'T' && col.Vflag == 'T' && sect.Vflag == 'T') {printf("The sudoku is valid!\n");}
 	return 0;
 }
